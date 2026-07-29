@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <lvgl.h>
+#include "esp_task_wdt.h"
 
 #include "shared_types.h"
 #include "wait_ui.h"
@@ -83,6 +84,9 @@ void setup(void) {
     Serial.begin(115200);
     Serial.println("[monitor] booting");
 
+    esp_task_wdt_init(5, true);
+    esp_task_wdt_add(NULL); 
+
     tft.init();
     tft.setRotation(3);
     tft.fillScreen(TFT_BLACK);
@@ -98,11 +102,11 @@ void setup(void) {
     disp_drv.draw_buf = &draw_buf;
     lv_disp_drv_register(&disp_drv);
 
-    xTaskCreatePinnedToCore(
+    xTaskCreate(
         lvgl_tick_task, "lv_tick",
         2048, NULL,
         configMAX_PRIORITIES - 1,
-        NULL, 1
+        NULL
     );
 
     // Initialize all UIs
@@ -119,6 +123,8 @@ void setup(void) {
 void loop(void) {
     monitor_data_t stats;
     uint32_t now = millis();
+
+    esp_task_wdt_reset();
 
     if (process_serial_input(&stats)) {
         last_packet_time = now;
